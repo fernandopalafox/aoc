@@ -10,7 +10,9 @@ def query(s_query, ranges):
         s_range = range(s, s + l)
         d_range = range(d, d + l)
         if s_query in s_range: 
+            print("match")
             return d_range[s_range.index(s_query)]
+    print("no match, returning query")
     return s_query
         
 category_counter = 0
