@@ -123,6 +123,98 @@ def select_d(prev, fds):
             return fd
 
 
+# How angle changes depending on pipes
+# Separate into exit and entrance changes 
+def new_id(id, oc, fd, prev_fd):
+    nid = id
+    match oc: 
+        case 'S':
+            if fd != prev_fd: # if turning corner
+                if fd == 0: 
+                    match prev_fd:
+                            case 0: 
+                                nid += 0
+                            case 1: 
+                                nid += 0
+                            case 2:
+                                nid += 270
+                            case 3: 
+                                nid += 90
+                elif fd == 1:
+                    match prev_fd:
+                            case 0: 
+                                nid += 0
+                            case 1: 
+                                nid += 0
+                            case 2:
+                                nid += 90
+                            case 3: 
+                                nid += 270
+                elif fd == 2: 
+                    match prev_fd:
+                            case 0: 
+                                nid += 90
+                            case 1: 
+                                nid += 270
+                            case 2:
+                                nid += 0
+                            case 3: 
+                                nid += 0
+                elif fd == 3:
+                    match prev_fd:
+                            case 0: 
+                                nid += 270
+                            case 1: 
+                                nid += 90
+                            case 2:
+                                nid += 0
+                            case 3: 
+                                nid += 0
+                else:
+                    print(id, oc, fd, prev_fd)
+                    assert False     
+        case '|':
+            nid += 0
+        case '-':
+            nid += 0
+        case '7':
+            match fd:
+                case 2:
+                    nid += 90
+                case 1:
+                    nid += 270
+                case _:
+                    assert False
+        case 'J':
+            match fd:
+                case 2:
+                    nid += 270
+                case 0:
+                    nid += 90
+                case _:
+                    print(id, oc, fd, prev_fd)
+                    assert False
+        case 'F':
+            match fd:
+                case 3:
+                    nid += 270
+                case 1:
+                    nid += 90
+                case _:
+                    assert False
+        case 'L':
+            match fd:
+                case 3:
+                    nid += 90
+                case 0:
+                    nid += 270
+                case _:
+                    assert False
+        case _:
+            assert False
+    return nid % 360
+
+
 ls = open(0).read().splitlines()
 dims = [len(ls), len(ls[0])]
 ps = ['|', '-', 'L', 'J', '7', 'F']
@@ -181,16 +273,19 @@ for row, l in enumerate(ls):
 
 for row, l in enumerate(ls):
     colmax = 0
+    replace_flag = False
     for col, c in enumerate(l):
         if l[0:col+1] == "".join(['.'] * (col + 1)):
+            replace_flag = True
             colmax = col
-    ll = ['O'] * (colmax + 1)
-    ll.append(l[colmax + 1:])
-    ls[row] = "".join(ll)
+    if replace_flag: 
+        ll = ['O'] * (colmax + 1)
+        ll.append(l[colmax + 1:])
+        ls[row] = "".join(ll)
 
 # Border non-enclosed
 for row, l in enumerate(ls):
-    # 1 or last, check all cols
+    # row 1 or last, check all cols
     if row == 0 or row == len(ls) - 1:
         for col, c in enumerate(l): 
             dfs((row,col), vs, '.', 'O')
@@ -212,53 +307,50 @@ for row, l in enumerate(ls):
 
 
 
-# Enclosed
+# # Enclosed
+vs = set()
 for row, l in enumerate(ls): 
     for col, c in enumerate(l):
         sc = None
         id = None
         # If dot, look for squeezable pipes around
-        if ls[row][col] == '.':
+        if c == '.':
             if (row > 0 and ls[row - 1][col] in sq): 
                 sc = (row - 1, col)
                 if ls[row - 1][col]  == 'L':
-                    id = 1 # left
+                    id = 180 # left
                 elif ls[row - 1][col] == 'J':
-                    id = 1 # right
+                    id = 0 # right
                 else:
                     print('up')
                     assert False 
-                print("up")
             elif (row < len(ls) - 1) and ls[row + 1][col] in sq:
                 sc = (row + 1, col)
                 if ls[row + 1][col] == '7':
                     id = 0 # right 
                 elif ls[row + 1][col] == 'F':
-                    id = 0 # left
+                    id = 180 # left
                 else:
                     print( ls[row][col], 'down',  ls[row + 1][col])
                     assert False 
-                print("down")
             elif col > 0 and l[col - 1] in sq:
                 sc = (row, col - 1)
                 if l[col - 1] == '7':
-                    id = 3 # up
+                    id = 90 # up
                 elif l[col - 1] == 'J':
-                    id = 3 # down
+                    id = 270 # down
                 else:
-                    print('left')
                     assert False
                 print("left")
             elif col < len(l) - 1 and l[col + 1] in sq:
                 sc = (row, col + 1)
                 if l[col + 1] == 'F':
-                    id = 2
+                    id = 90
                 elif l[col + 1] == 'L':
-                    id = 2
+                    id = 270
                 else:
                     print('right')
                     assert False
-                print("right")
 
             if id == None:
                 continue
@@ -268,313 +360,85 @@ for row, l in enumerate(ls):
             if not sc == None:
                 prev_c = ls[sc[0]][sc[1]]
                 print("start", sc, prev_c, id)
-                fds = find_fd(sc)
-                fd = fds[0]
-                # cc = step(sc, fd)
-                cc = sc
+                # fds = find_fd(sc)
+                # fd = fds[0] # cho
+                fd = None
+                match prev_c: 
+                    case '7':
+                        match id:
+                            case 0:
+                                fd = 2
+                            case 90:
+                                fd = 1
+                    case 'J':
+                        match id: 
+                            case 0: 
+                                fd = 2
+                            case 270:
+                                fd = 0
+                    case 'F':
+                        match id:
+                            case 90: 
+                                fd = 1
+                            case 180:
+                                fd = 3
+                    case 'L':
+                        match id: 
+                            case 180:
+                                fd = 3
+                            case 270: 
+                                fd = 0
+                assert fd != None
+                cc = step(sc, fd)
+                # cc = sc
+                id = new_id(id, prev_c, fd, '')
                 prev_fd = fd
                 nc = ls[cc[0]][cc[1]]
 
-                run_flag = True
+                # Check inside
+                vc = None
+                if id == 0:
+                    if cc[1] + 1 < len(ls[0]):
+                        vc = ls[cc[0]][cc[1] + 1]   
+                elif id == 90:
+                    vc = ls[cc[0] - 1][cc[1]]
+                elif id == 180:
+                    if cc[1] - 1 >= 0:
+                        vc = ls[cc[0]][cc[1] - 1]
+                elif id == 270:
+                    vc = ls[cc[0] + 1][cc[1]]
+                
+                # If "inside" is O, run dfs on start
+                if vc == 'O':
+                    print('ding', cc, nc, id)
+                    dfs((row,col), vs, '.', 'O')
+                    run_flag = False
 
+                run_flag = True
                 while run_flag:
+                    # print(prev_fd, cc, nc, id)
                     prev_c = ls[cc[0]][cc[1]]
                     fds = find_fd(cc)
                     fd = select_d(prev_fd, fds)
                     cc = step(cc, fd)
+                    id = new_id(id, prev_c, fd, prev_fd)
+                    print(prev_fd, cc, ls[cc[0]][cc[1]], id)
                     prev_fd = fd
                     nc = ls[cc[0]][cc[1]]
-
-                    # So nasty fuck
-                    if id == 0: 
-                        if nc == '|' and (prev_fd == 0 or prev_fd == 1):
-                            if prev_c == '7':
-                                id = 2
-                            elif prev_c == 'L':
-                                id = 2
-                            elif prev_c == 'F':
-                                id = 3
-                            elif prev_c == 'J':
-                                id = 3
-                            else:
-                                print(prev_fd, cc, nc, id)
-                                assert False
-                        elif nc == '7' and prev_fd == 0:
-                            if prev_c == 'J':
-                                id = 1
-                            elif prev_c == 'L':
-                                id = 0
-                            else:
-                                print(prev_fd, cc, nc, id)
-                                assert False
-                        elif nc == 'J' and prev_fd == 1:
-                            if prev_c == 'F':
-                                id = 0
-                            elif prev_c == '7':
-                                id = 1
-                            else:
-                                print(prev_fd, cc, nc, id)
-                                assert False
-                        elif nc == 'F' and prev_fd == 0:
-                            if prev_c == 'J':
-                                id = 0
-                            elif prev_c == 'L':
-                                id = 1
-                            else:
-                                print(prev_fd, cc, nc, id)
-                                assert False
-                        elif nc == 'L' and prev_fd == 1:
-                            if prev_c == 'F':
-                                id = 1
-                            elif prev_c == '7':
-                                id = 0
-                            else:
-                                print(prev_fd, cc, nc, id)
-                                assert False
-                        elif nc == '7' and prev_fd == 3:
-                            id = 3
-                        elif nc == 'J' and prev_fd == 3:
-                            id = 2
-                        elif nc == 'F' and prev_fd == 2:
-                            id = 2
-                        elif nc == 'L' and prev_fd == 2:
-                            id = 3
-                        elif nc == '-' and (prev_fd == 2 or prev_fd == 3):
-                            id = 0
-                        elif nc == 'S':
-                            nf = select_d(prev_fd, find_fd(cc))
-                            if nf == 0:
-                                id = 3
-                            if nf == 1:
-                                id = 2
-                            if nf == 2:
-                                id = 0
-                            if nf == 3:
-                                id = 0
-                        else: 
-                            print(prev_fd, cc, nc, id)
-                            assert False
-                    elif id == 1:
-                        if nc == '|' and (prev_fd == 0 or prev_fd == 1):
-                            if prev_c == '7':
-                                id = 2
-                            elif prev_c == 'L':
-                                id = 2
-                            elif prev_c == 'F':
-                                id = 3
-                            elif prev_c == 'J':
-                                id = 3
-                            else:
-                                print(prev_fd, cc, nc, id)
-                                assert False
-                        elif nc == '7' and prev_fd == 0:
-                            if prev_c == 'J':
-                                id = 0
-                            elif prev_c == 'L':
-                                id = 1
-                            else:
-                                print(prev_fd, cc, nc, id)
-                                assert False
-                        elif nc == 'J' and prev_fd == 1:
-                            if prev_c == 'F':
-                                id = 1
-                            elif prev_c == '7':
-                                id = 0
-                            else:
-                                print(prev_fd, cc, nc, id)
-                                assert False
-                        elif nc == 'F' and prev_fd == 0:
-                            if prev_c == 'J':
-                                id = 1
-                            elif prev_c == 'L':
-                                id = 0
-                            else:
-                                print(prev_fd, cc, nc, id)
-                                assert False
-                        elif nc == 'L' and prev_fd == 1:
-                            if prev_c == 'F':
-                                id = 0
-                            elif prev_c == '7':
-                                id = 1
-                            else:
-                                print(prev_fd, cc, nc, id)
-                                assert False
-                        elif nc == '7' and prev_fd == 3:
-                            id = 2
-                        elif nc == 'J' and prev_fd == 3:
-                            id = 3
-                        elif nc == 'F' and prev_fd == 2:
-                            id = 3
-                        elif nc == 'L' and prev_fd == 2:
-                            id = 2
-                        elif nc == '-' and (prev_fd == 2 or prev_fd == 3):
-                            id = 1
-                        elif nc == 'S':
-                            nf = select_d(prev_fd, find_fd(cc))
-                            if nf == 0:
-                                id = 2
-                            if nf == 1:
-                                id = 3
-                            if nf == 2:
-                                id = 1
-                            if nf == 3:
-                                id = 1
-                        else: 
-                            print(prev_fd, cc, nc, id)
-                            assert False
-                    elif id == 2:
-                        if nc == '|' and (prev_fd == 0 or prev_fd == 1):
-                            id = 2
-                        elif nc == '7' and prev_fd == 0:
-                            id = 1
-                        elif nc == 'J' and prev_fd == 1:
-                            id = 0
-                        elif nc == 'F' and prev_fd == 0:
-                            id = 0
-                        elif nc == 'L' and prev_fd == 1:
-                            id = 1
-                        elif nc == '7' and prev_fd == 3:
-                            if prev_c == 'F':
-                                id = 3
-                            elif prev_c == 'L':
-                                id = 2
-                            else:
-                                print(prev_fd, cc, nc, id)
-                                assert False
-                        elif nc == 'J' and prev_fd == 3:
-                            if prev_c == 'F':
-                                id = 2
-                            elif prev_c == 'L':
-                                id = 3
-                            else:
-                                print(prev_fd, cc, nc, id)
-                                assert False
-                        elif nc == 'F' and prev_fd == 2:
-                            if prev_c == '7':
-                                id = 3
-                            elif prev_c == 'J':
-                                id = 2
-                            else:
-                                print(prev_fd, cc, nc, id)
-                                assert False
-                        elif nc == 'L' and prev_fd == 2:
-                            if prev_c == '7':
-                                id = 2
-                            elif prev_c == 'J':
-                                id = 3
-                            else:
-                                print(prev_fd, cc, nc, id)
-                                assert False
-                        elif nc == '-' and (prev_fd == 2 or prev_fd == 3):
-                            if prev_c == '7':
-                                id = 1
-                            elif prev_c == 'L':
-                                id = 1
-                            elif prev_c == 'F':
-                                id = 0
-                            elif prev_c == 'J':
-                                id = 0
-                            else:
-                                print(prev_fd, cc, nc, id)
-                                assert False
-                        elif nc == 'S':
-                            nf = select_d(prev_fd, find_fd(cc))
-                            if nf == 0:
-                                id = 2
-                            if nf == 1:
-                                id = 2
-                            if nf == 2:
-                                id = 0
-                            if nf == 3:
-                                id = 0
-                        else: 
-                            print(prev_fd, cc, nc, id)
-                            assert False
-                        # print(id)
-                    elif id == 3:
-                        if nc == '|' and (prev_fd == 0 or prev_fd == 1):
-                            id = 3
-                        elif nc == '7' and prev_fd == 0:
-                            id = 0
-                        elif nc == 'J' and prev_fd == 1:
-                            id = 1
-                        elif nc == 'F' and prev_fd == 0:
-                            id = 1
-                        elif nc == 'L' and prev_fd == 1:
-                            id = 0
-                        elif nc == '7' and prev_fd == 3:
-                            if prev_c == 'F':
-                                id = 2
-                            elif prev_c == 'L':
-                                id = 3
-                            else:
-                                print(prev_fd, cc, nc, id)
-                                assert False
-                        elif nc == 'J' and prev_fd == 3:
-                            if prev_c == 'F':
-                                id = 3
-                            elif prev_c == 'L':
-                                id = 2
-                            else:
-                                print(prev_fd, cc, nc, id)
-                                assert False
-                        elif nc == 'F' and prev_fd == 2:
-                            if prev_c == '7':
-                                id = 2
-                            elif prev_c == 'J':
-                                id = 3
-                            else:
-                                print(prev_fd, cc, nc, id)
-                                assert False
-                        elif nc == 'L' and prev_fd == 2:
-                            if prev_c == '7':
-                                id = 3
-                            elif prev_c == 'J':
-                                id = 2
-                            else:
-                                print(prev_fd, cc, nc, id)
-                                assert False
-                        elif nc == '-' and (prev_fd == 2 or prev_fd == 3):
-                            if prev_c == '7':
-                                id = 0
-                            elif prev_c == 'L':
-                                id = 0
-                            elif prev_c == 'F':
-                                id = 1
-                            elif prev_c == 'J':
-                                id = 1
-                            else:
-                                print(prev_fd, cc, nc, id)
-                                assert False
-                        elif nc == 'S':
-                            nf = select_d(prev_fd, find_fd(cc))
-                            if nf == 0:
-                                id = 3
-                            if nf == 1:
-                                id = 3
-                            if nf == 2:
-                                id = 1
-                            if nf == 3:
-                                id = 1
-                        else: 
-                            print(prev_fd, cc, nc, id)
-                            assert False
-                        # print(id)
-                    print(prev_fd, cc, nc, id)
                     assert not id == None
 
                     # Check inside
                     vc = None
                     if id == 0:
-                        vc = ls[cc[0] - 1][cc[1]]   
-                    elif id == 1:
-                        vc = ls[cc[0] + 1][cc[1]]
-                    elif id == 2:
+                        if cc[1] + 1 < len(ls[0]):
+                            vc = ls[cc[0]][cc[1] + 1]   
+                    elif id == 90:
+                        vc = ls[cc[0] - 1][cc[1]]
+                    elif id == 180:
                         if cc[1] - 1 >= 0:
                             vc = ls[cc[0]][cc[1] - 1]
-                    else:
-                        if cc[1] + 1 < len(ls[0]):
-                            vc = ls[cc[0]][cc[1] + 1]
+                    elif id == 270:
+                        vc = ls[cc[0] + 1][cc[1]]
                     
                     # If "inside" is O, run dfs on start
                     if vc == 'O':
@@ -583,6 +447,7 @@ for row, l in enumerate(ls):
                         run_flag = False
 
                     if cc == sc:
+                        # print("enclosed")
                         run_flag = False
 
 # Replace all remaining dots with I
